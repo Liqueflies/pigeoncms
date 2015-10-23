@@ -142,6 +142,10 @@ namespace PigeonCms.Shop
 
                     sSql += " AND t.Id NOT IN (" + excludeParams + ") ";
                 }
+                sSql += " AND ("
+                     + Database.AddDatesRangeParameters(myCmd.Parameters, myProv, "t.orderDate", filter.OrderDatesRange)
+                     + ")";
+
                 if (!string.IsNullOrEmpty(sort))
                 {
                     sSql += " ORDER BY " + sort;
@@ -408,7 +412,7 @@ namespace PigeonCms.Shop
         }
 
         /// <summary>
-        /// calculate order summary fetching rows
+        /// calculate order summary fetching rows, coupon and ship fees
         /// QtyAmount
         /// OrderAmount
         /// TotalAmount

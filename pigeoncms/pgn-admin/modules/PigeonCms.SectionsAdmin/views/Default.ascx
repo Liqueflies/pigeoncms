@@ -21,6 +21,12 @@
         });
     }
 
+    function changeItemType() {
+        var elemname = '#<%=DropItemType.ClientID %>';
+        $(elemname).removeAttr('disabled');
+        $('#lnkchange').hide();
+    }
+
     var deleteQuestion = '<%=PigeonCms.Utility.GetLabel("RECORD_DELETE_QUESTION") %>';
 
 // ]]>
@@ -49,11 +55,11 @@
         <asp:View ID="ViewSee" runat="server">
 
             <div class="col-lg-12">
-                <div class="panel panel-default">
+                <div class="panel panel-default clearfix">
                     <div class="panel-body"> 
                         <div class="pull-right">
                             <div class="btn-group adminToolbar">
-                                <asp:Button ID="BtnNew" runat="server" Text="<%$ Resources:PublicLabels, CmdNew %>" CssClass="btn btn-primary btn-xs" OnClick="BtnNew_Click" />
+                                <asp:Button ID="BtnNew" runat="server" Text="<%$ Resources:PublicLabels, CmdNew %>" CssClass="btn btn-primary" OnClick="BtnNew_Click" />
                             </div>
                         </div> 
                     </div>
@@ -93,10 +99,14 @@
                                 <asp:TemplateField HeaderText="<%$ Resources:PublicLabels, LblTitle %>" ItemStyle-HorizontalAlign="Left" HeaderStyle-HorizontalAlign="Left">
                                     <ItemTemplate>
                                         <asp:LinkButton ID="LnkTitle" runat="server" CausesValidation="false" CommandName="Select" CommandArgument='<%#Eval("Id") %>'></asp:LinkButton>
+                                        <br />
+                                        <span class="small text-muted">
+                                            <asp:Literal ID="LitItemInfo" runat="server" Text=""></asp:Literal>
+                                        </span>
                                     </ItemTemplate>
                                 </asp:TemplateField>
 
-                                <asp:BoundField DataField="CssClass" HeaderText="Css" SortExpression="CssClass" />
+                                <asp:BoundField DataField="CssClass" HeaderText="Css" ItemStyle-CssClass="small text-muted" SortExpression="CssClass" />
                     
                                 <asp:TemplateField HeaderText="<%$ Resources:PublicLabels, LblEnabled %>" ItemStyle-HorizontalAlign="Center" HeaderStyle-HorizontalAlign="Center">
                                     <ItemTemplate>
@@ -109,7 +119,7 @@
                                     </ItemTemplate>
                                 </asp:TemplateField>
 
-                                <asp:TemplateField HeaderText="Access" SortExpression="AccessType">
+                                <asp:TemplateField HeaderText="Access" SortExpression="AccessType" ItemStyle-CssClass="small text-muted">
                                     <ItemTemplate>
                                     <asp:Literal ID="LitAccessTypeDesc" runat="server" Text=""></asp:Literal>
                                     </ItemTemplate>
@@ -132,19 +142,23 @@
                                             <i class='fa fa-pgn_image fa-fw'></i>
                                         </asp:HyperLink>
                                         <br />
-                                        <span><asp:Literal ID="LitImgCount" runat="server" Text=""></asp:Literal></span>
+                                        <span class="small text-muted"><asp:Literal ID="LitImgCount" runat="server" Text=""></asp:Literal></span>
                                     </ItemTemplate>
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="Items" SortExpression="">
                                     <ItemTemplate>
-                                    <asp:Literal ID="LitItems" runat="server" Text=""></asp:Literal>
+                                        <span class="small text-muted">
+                                            <asp:Literal ID="LitItems" runat="server" Text=""></asp:Literal>
+                                        </span>
                                     </ItemTemplate>
                                 </asp:TemplateField>
 
                                 <asp:TemplateField HeaderText="Disk space" SortExpression="">
                                     <ItemTemplate>
-                                    <asp:Literal ID="LitDiskSpace" runat="server" Text=""></asp:Literal>
+                                        <span class="small text-muted">
+                                            <asp:Literal ID="LitDiskSpace" runat="server" Text=""></asp:Literal>
+                                        </span>
                                     </ItemTemplate>
                                 </asp:TemplateField>
 
@@ -157,7 +171,8 @@
                                     </ItemTemplate>
                                 </asp:TemplateField>
                     
-                                <asp:BoundField DataField="Id" HeaderText="ID" SortExpression="Id" ItemStyle-Width="10" ItemStyle-HorizontalAlign="Right" HeaderStyle-HorizontalAlign="Right" />
+                                <asp:BoundField DataField="Id" HeaderText="ID" ItemStyle-CssClass="small text-muted"
+                                     SortExpression="Id" ItemStyle-Width="10" ItemStyle-HorizontalAlign="Right" HeaderStyle-HorizontalAlign="Right" />
                             </Columns>
                         </asp:GridView>
 
@@ -184,12 +199,12 @@
 
             <div class="panel panel-default">
 
-                <div class="panel-heading">
+                <div class="panel-heading clearfix">
                     <%=base.GetLabel("LblDetails", "Details") %>
                     <div class="pull-right">
                         <div class="btn-group">
-                            <asp:Button ID="BtnSave" runat="server" Text="<%$ Resources:PublicLabels, CmdSave %>" CssClass="btn btn-primary btn-xs" OnClick="BtnSave_Click" />
-                            <asp:Button ID="BtnCancel" runat="server" Text="<%$ Resources:PublicLabels, CmdCancel %>" CssClass="btn btn-default btn-xs" CausesValidation="false" OnClick="BtnCancel_Click" />
+                            <asp:Button ID="BtnSave" runat="server" Text="<%$ Resources:PublicLabels, CmdSave %>" CssClass="btn btn-primary" OnClick="BtnSave_Click" />
+                            <asp:Button ID="BtnCancel" runat="server" Text="<%$ Resources:PublicLabels, CmdCancel %>" CssClass="btn btn-default" CausesValidation="false" OnClick="BtnCancel_Click" />
                         </div>
                     </div>
                 </div>
@@ -215,12 +230,25 @@
                                 <asp:Panel runat="server" ID="PanelDescription"></asp:Panel>
                             </div>
 
-                            <div class="form-group col-sm-6">
+                            <div class="form-group col-lg-3 col-md-6">
+                                <%=base.GetLabel("LblExtId", "External Id", TxtExtId, true)%>
+                                <asp:TextBox ID="TxtExtId" runat="server" MaxLength="50" CssClass="form-control"></asp:TextBox>
+                            </div>
+
+                            <div class="form-group col-lg-3 col-md-6">
+                                <%=base.GetLabel("LblItemType", "ItemType", DropItemType, true)%>
+                                <a href="javascript:void(0)" onclick="changeItemType();" id="lnkchange" runat="server">
+                                    <%=base.GetLabel("LblChange", "change", null, true) %>
+                                </a>
+                                <asp:DropDownList ID="DropItemType" runat="server" CssClass="form-control"></asp:DropDownList>
+                            </div>
+
+                            <div class="form-group col-lg-3 col-md-6">
                                 <%=base.GetLabel("LblCssClass", "Css class", TxtCssClass, true)%>
                                 <asp:TextBox ID="TxtCssClass" runat="server" MaxLength="50" CssClass="form-control"></asp:TextBox>
                             </div>
 
-                            <div class="form-group col-sm-6">
+                            <div class="form-group col-lg-3 col-md-6">
                                 <%=base.GetLabel("LblEnabled", "Enabled", ChkEnabled, true)%>
                                 <asp:CheckBox ID="ChkEnabled" runat="server" CssClass="form-control" Enabled="true" />
                             </div>

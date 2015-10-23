@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<install 
+    installerVersion="1.0.0"
+    type="module" 
+    version="1.0.0"
+    core="false"
+    namespace="PigeonCms"
+    name="OrdersAdmin"
+    author="p-ice"
+    creationDate="2015-09-29"
+    copyright="Copyright(C) 2015 Nicola Ridolfi. All rights reserved."
+    license=""
+    authorEmail="picce@yahoo.it"
+    authorUrl="https://github.com/picce/"
+    description="Manage shop orders">
+    <files>
+    </files>
+
+    <params group="filters">
+
+      <param name="OwnerUser" type="text" default="" label="Owner user" description=""></param>
+
+      <param name="PaymentFilter" type="combo" default="2" label="Payment">
+        <option value="2" label="Not set"></option>
+        <option value="1" label="Done"></option>
+        <option value="0" label="Pending"></option>
+      </param>
+
+      <param name="OrderConfirmedFilter" type="combo" default="2" label="Order confirmed">
+        <option value="2" label="Not set"></option>
+        <option value="1" label="Yes"></option>
+        <option value="0" label="No"></option>
+      </param>      
+      
+    </params>
+</install>

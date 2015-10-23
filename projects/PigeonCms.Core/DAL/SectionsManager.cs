@@ -17,9 +17,12 @@ using System.Diagnostics;
 namespace PigeonCms
 {
     /// <summary>
-    /// DAL for categoria obj (in table categorie)
+    /// DAL for Section obj (in table #__sections)
     /// </summary>
-    public class SectionsManager : TableManager<Section, SectionsFilter, int>, ITableManagerWithPermission
+    public class SectionsManager : 
+        TableManager<Section, SectionsFilter, int>, 
+        ITableManagerWithPermission,
+        ITableManagerExternalId<Section>
     {
         private bool checkUserContext = false;
         private bool writeMode = false;
@@ -49,9 +52,15 @@ namespace PigeonCms
 
         public override Dictionary<string, string> GetList()
         {
-            Dictionary<string, string> res = new Dictionary<string, string>();
-            SectionsFilter filter = new SectionsFilter();
-            List<Section> list = GetByFilter(filter, "");
+            return GetListByItemType("");
+        }
+
+        public Dictionary<string, string> GetListByItemType(string itemType)
+        {
+            var res = new Dictionary<string, string>();
+            var filter = new SectionsFilter();
+            filter.ItemType = itemType;
+            var list = GetByFilter(filter, "");
             foreach (Section item in list)
             {
                 res.Add(item.Id.ToString(), item.Title);
@@ -77,7 +86,7 @@ namespace PigeonCms
                 sSql = "SELECT t.Id, t.Enabled, " 
                     + " t.AccessType, t.PermissionId, t.AccessCode, t.AccessLevel, "
                     + " t.WriteAccessType, t.WritePermissionId, t.WriteAccessCode, t.WriteAccessLevel, "
-                    + " t.MaxItems, t.MaxAttachSizeKB, t.CssClass "
+                    + " t.MaxItems, t.MaxAttachSizeKB, t.CssClass, t.ItemType, t.ExtId "
                     + " FROM ["+ this.TableName +"] t "
                     + " WHERE t.Id > 0 ";
                 if (filter.Id > 0 || filter.Id == -1)
@@ -89,6 +98,16 @@ namespace PigeonCms
                 {
                     sSql += " AND t.Enabled = @Enabled ";
                     myCmd.Parameters.Add(Database.Parameter(myProv, "Enabled", filter.Enabled));
+                }
+                if (!string.IsNullOrEmpty(filter.ItemType))
+                {
+                    sSql += " AND t.ItemType = @ItemType ";
+                    myCmd.Parameters.Add(Database.Parameter(myProv, "ItemType", filter.ItemType));
+                }
+                if (!string.IsNullOrEmpty(filter.ExtId))
+                {
+                    sSql += " AND t.ExtId = @ExtId ";
+                    myCmd.Parameters.Add(Database.Parameter(myProv, "ExtId", filter.ExtId));
                 }
                 if (!string.IsNullOrEmpty(sort))
                 {
@@ -148,6 +167,33 @@ namespace PigeonCms
             return result;
         }
 
+        public Section GetByExtId(string extId)
+        {
+            var result = new Section();
+            var resultList = new List<Section>();
+            var filter = new SectionsFilter();
+            
+            if (string.IsNullOrEmpty(extId))
+                return result;  
+
+            filter.ExtId = extId;
+            resultList = GetByFilter(filter, "");
+            if (resultList.Count > 0)
+                result = resultList[0];
+
+            return result;
+        }
+
+        public int DeleteByExtId(string extId)
+        {
+            int res = 0;
+            var item = GetByExtId(extId);
+            if (item.Id > 0)
+                res = this.DeleteById(item.Id);
+            
+            return res;
+        }
+
         public override int Update(Section theObj)
         {
             DbProviderFactory myProv = Database.ProviderFactory;
@@ -175,11 +221,15 @@ namespace PigeonCms
                 + " [AccessCode]=@AccessCode, AccessLevel=@AccessLevel, "
                 + " WriteAccessType=@WriteAccessType, WritePermissionId=@WritePermissionId, "
                 + " [WriteAccessCode]=@WriteAccessCode, WriteAccessLevel=@WriteAccessLevel, "
-                + " [MaxItems]=@MaxItems, MaxAttachSizeKB=@MaxAttachSizeKB, CssClass=@CssClass "
+                + " [MaxItems]=@MaxItems, MaxAttachSizeKB=@MaxAttachSizeKB, "
+                + " CssClass=@CssClass, ItemType=@ItemType, ExtId=@ExtId "
                 + " WHERE Id = @Id";
                 myCmd.CommandText = Database.ParseSql(sSql);
                 myCmd.Parameters.Add(Database.Parameter(myProv, "Id", theObj.Id));
                 myCmd.Parameters.Add(Database.Parameter(myProv, "Enabled", theObj.Enabled));
+                myCmd.Parameters.Add(Database.Parameter(myProv, "CssClass", theObj.CssClass));
+                myCmd.Parameters.Add(Database.Parameter(myProv, "ItemType", theObj.ItemType));
+                myCmd.Parameters.Add(Database.Parameter(myProv, "ExtId", theObj.ExtId));
                 //read permissions
                 myCmd.Parameters.Add(Database.Parameter(myProv, "AccessType", theObj.ReadAccessType));
                 myCmd.Parameters.Add(Database.Parameter(myProv, "PermissionId", theObj.ReadPermissionId));
@@ -193,7 +243,6 @@ namespace PigeonCms
                 //limits
                 myCmd.Parameters.Add(Database.Parameter(myProv, "MaxItems", theObj.MaxItems));
                 myCmd.Parameters.Add(Database.Parameter(myProv, "MaxAttachSizeKB", theObj.MaxAttachSizeKB));
-                myCmd.Parameters.Add(Database.Parameter(myProv, "CssClass", theObj.CssClass));
 
                 result = myCmd.ExecuteNonQuery();
                 updateCultureText(theObj, myCmd, myProv);
@@ -239,16 +288,19 @@ namespace PigeonCms
                 sSql = "INSERT INTO [" + this.TableName + "](/*Id,*/ Enabled, "
                 + " AccessType, PermissionId, AccessCode, AccessLevel, "
                 + " WriteAccessType, WritePermissionId, WriteAccessCode, WriteAccessLevel, "
-                + " MaxItems, MaxAttachSizeKB, CssClass) "
+                + " MaxItems, MaxAttachSizeKB, CssClass, ItemType, ExtId) "
                 + " VALUES(/*@Id,*/ @Enabled, "
                 + " @AccessType, @PermissionId, @AccessCode, @AccessLevel, "
                 + " @WriteAccessType, @WritePermissionId, @WriteAccessCode, @WriteAccessLevel, "
-                + " @MaxItems, @MaxAttachSizeKB, @CssClass) "
+                + " @MaxItems, @MaxAttachSizeKB, @CssClass, @ItemType, @ExtId) "
                 + " SELECT SCOPE_IDENTITY()";
                 myCmd.CommandText = Database.ParseSql(sSql);
 
                 //myCmd.Parameters.Add(Database.Parameter(myProv, "Id", result.Id));//identity
                 myCmd.Parameters.Add(Database.Parameter(myProv, "Enabled", newObj.Enabled));
+                myCmd.Parameters.Add(Database.Parameter(myProv, "CssClass", newObj.CssClass));
+                myCmd.Parameters.Add(Database.Parameter(myProv, "ItemType", newObj.ItemType));
+                myCmd.Parameters.Add(Database.Parameter(myProv, "ExtId", newObj.ExtId));
                 //read permissions
                 myCmd.Parameters.Add(Database.Parameter(myProv, "AccessType", (int)newObj.ReadAccessType));
                 myCmd.Parameters.Add(Database.Parameter(myProv, "PermissionId", newObj.ReadPermissionId));
@@ -262,7 +314,6 @@ namespace PigeonCms
                 //limits
                 myCmd.Parameters.Add(Database.Parameter(myProv, "MaxItems", (int)newObj.MaxItems));
                 myCmd.Parameters.Add(Database.Parameter(myProv, "MaxAttachSizeKB", (int)newObj.MaxAttachSizeKB));
-                myCmd.Parameters.Add(Database.Parameter(myProv, "CssClass", newObj.CssClass));
 
                 newObj.Id = (int)(decimal)myCmd.ExecuteScalar();
                 updateCultureText(newObj, myCmd, myProv);
@@ -360,6 +411,10 @@ namespace PigeonCms
                 result.Id = (int)myRd["Id"];
             if (!Convert.IsDBNull(myRd["Enabled"]))
                 result.Enabled = (bool)myRd["Enabled"];
+            if (!Convert.IsDBNull(myRd["ItemType"]))
+                result.ItemType = (string)myRd["ItemType"];
+            if (!Convert.IsDBNull(myRd["ExtId"]))
+                result.ExtId = (string)myRd["ExtId"];
 
             //read permissions
             if (!Convert.IsDBNull(myRd["AccessType"]))
@@ -384,8 +439,6 @@ namespace PigeonCms
                 result.MaxItems = (int)myRd["MaxItems"];
             if (!Convert.IsDBNull(myRd["MaxAttachSizeKB"]))
                 result.MaxAttachSizeKB = (int)myRd["MaxAttachSizeKB"];
-            if (!Convert.IsDBNull(myRd["CssClass"]))
-                result.CssClass = (string)myRd["CssClass"];
         }
 
         private bool hasChilds(int sectionId)
@@ -448,5 +501,6 @@ namespace PigeonCms
                 myCmd.ExecuteNonQuery();
             }
         }
+
     }
 }

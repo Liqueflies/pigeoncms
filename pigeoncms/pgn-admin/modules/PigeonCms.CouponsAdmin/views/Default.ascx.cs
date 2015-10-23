@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Configuration;
 using System.Collections;
+using System.Linq;
 using System.Web;
 using System.Web.Security;
 using System.Web.UI;
@@ -23,6 +24,7 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
     const int COL_FILES_INDEX = 7;
     const int COL_IMAGES_INDEX = 8;
     const int COL_ID_INDEX = 10;
+    private PigeonCms.Shop.Settings shopSettings = new PigeonCms.Shop.Settings();
 
     protected DateTime ValidFrom
     {
@@ -73,6 +75,12 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
     {
         LblOk.Text = "";
         LblErr.Text = "";
+
+        if (!Page.IsPostBack)
+        {
+            loadListCategories();
+            loadListItems();
+        }
     }
 
 
@@ -127,7 +135,7 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
             var item = new Coupon();
             item = (Coupon)e.Row.DataItem;
 
-            LinkButton LnkTitle = (LinkButton)e.Row.FindControl("LnkTitle");
+            var LnkTitle = (LinkButton)e.Row.FindControl("LnkTitle");
             LnkTitle.Text = "<i class='fa fa-pgn_edit fa-fw'></i>";
             LnkTitle.Text += Utility.Html.GetTextPreview(item.Code, 50, "");
             if (string.IsNullOrEmpty(LnkTitle.Text))
@@ -135,19 +143,26 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
             if (Roles.IsUserInRole("debug"))
                 LnkTitle.Text += " [" + item.Id.ToString() + "]";
 
-            Literal LitCouponInfo = e.Row.FindControl("LitCouponInfo") as Literal;
-            LitCouponInfo.Text += "max uses: " + item.MaxUses + " times <br>";
+
+            var LitCouponInfo = e.Row.FindControl("LitCouponInfo") as Literal;
+            LitCouponInfo.Text += "max uses: " 
+                + (item.MaxUses > 0 ? item.MaxUses.ToString() : "unlimited") 
+                + " times <br>";
             LitCouponInfo.Text += "used: " + item.UsesCounter + " times <br>";
+            if (item.CategoriesIdList.Count > 0)
+                LitCouponInfo.Text += item.CategoriesIdList.Count + " filters on categories<br>";
+            if (item.ItemsIdList.Count > 0)
+                LitCouponInfo.Text += item.ItemsIdList.Count + " filters on items<br>";
             
             //if percentage show percent, also the default 
             Literal LitValueAmount = e.Row.FindControl("LitValueAmount") as Literal;
             if (item.IsPercentage)
             {
-                LitValueAmount.Text = item.Amount.ToString() + "%";
+                LitValueAmount.Text = (item.Amount * 100).ToString() + "%";
             }
             else
             {
-                LitValueAmount.Text = item.Amount.ToString("C");
+                LitValueAmount.Text = shopSettings.CurrencyDefault.Symbol + " " + item.Amount.ToString("0.00");
             }
 
             //Published
@@ -162,11 +177,13 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
                 img1.Visible = true;
             }
 
-            Literal LitValidForm = e.Row.FindControl("LitValidFrom") as Literal;
-            Literal LitValidTo = e.Row.FindControl("LitValidTo") as Literal;
+            var LitValidForm = e.Row.FindControl("LitValidFrom") as Literal;
+            var LitValidTo = e.Row.FindControl("LitValidTo") as Literal;
 
-            LitValidForm.Text = item.ValidFrom.ToShortDateString();
-            LitValidTo.Text = item.ValidTo.ToShortDateString();
+            if (item.ValidFrom != DateTime.MinValue)
+                LitValidForm.Text = item.ValidFrom.ToShortDateString();
+            if (item.ValidTo != DateTime.MinValue)
+                LitValidTo.Text = item.ValidTo.ToShortDateString();
 
         }
     }
@@ -225,6 +242,8 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
         ChkPercentage.Checked = false;
         this.ValidFrom = DateTime.MinValue;
         this.ValidTo = DateTime.MinValue;
+        Utility.SetListBoxByValues(ListCategories, 0);
+        Utility.SetListBoxByValues(ListItems, 0);
     }
 
     private void form2obj(Coupon obj)
@@ -256,6 +275,18 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
         int maxUses = 0;
         int.TryParse(TxtMaxUses.Text, out maxUses);
         obj.MaxUses = maxUses;
+        
+        obj.CategoriesIdListString = String.Join(",", 
+            ListCategories.Items.Cast<ListItem>()
+                .Where(i => i.Selected && i.Value != "0")
+                .Select(i => i.Value)
+                .ToArray());
+
+        obj.ItemsIdListString = String.Join(",",
+            ListItems.Items.Cast<ListItem>()
+                .Where(i => i.Selected && i.Value != "0")
+                .Select(i => i.Value)
+                .ToArray());
 
     }
 
@@ -269,6 +300,9 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
         TxtMaxUses.Text = obj.MaxUses.ToString();
         this.ValidFrom = obj.ValidFrom;
         this.ValidTo = obj.ValidTo;
+
+        Utility.SetListBoxByValues(ListCategories, obj.CategoriesIdList);
+        Utility.SetListBoxByValues(ListItems, obj.ItemsIdList);
     }
 
     private void editRow(int recordId)
@@ -285,7 +319,6 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
             obj2form(obj);
         }
         MultiView1.ActiveViewIndex = 1;
-        //loadListRow();
     }
 
     private void deleteRow(int recordId)
@@ -328,20 +361,45 @@ public partial class Controls_CouponAdmin : PigeonCms.BaseModuleControl
         finally { }
     }
 
-    //private void loadListRow()
-    //{
-    //    ListCategories.Items.Clear();
-    //    ListCategories.Items.Add(new ListItem("", ""));    //to allow no roles
-    //    foreach (var item in new CategoriesManager().GetByFilter(new CategoriesFilter(), ""))
-    //    {
-    //        ListItem listItem = new ListItem();
-    //        listItem.Value = item.Id.ToString();
-    //        listItem.Text = item.Title;
-    //        listItem.Enabled = true;
+    private void loadListCategories()
+    {
+        var man = new CategoriesManager();
+        var filter = new CategoriesFilter();
+        filter.SectionId = shopSettings.SectionId;
+        var list = man.GetByFilter(filter, "");
 
-    //        ListCategories.Items.Add(listItem);
-    //    }
-    //}
+        ListCategories.Items.Clear();
+        ListCategories.Items.Add(new ListItem("", "0"));
+        foreach (var item in list)
+        {
+            var listItem = new ListItem();
+            listItem.Value = item.Id.ToString();
+            listItem.Text = item.Title;
+            listItem.Enabled = true;
+
+            ListCategories.Items.Add(listItem);
+        }
+    }
+
+    private void loadListItems()
+    {
+        var man = new ItemsManager<Item, ItemsFilter>();
+        var filter = new ItemsFilter();
+        filter.SectionId = shopSettings.SectionId;
+        var list = man.GetByFilter(filter, "");
+
+        ListItems.Items.Clear();
+        ListItems.Items.Add(new ListItem("", "0"));
+        foreach (var item in list)
+        {
+            var listItem = new ListItem();
+            listItem.Value = item.Id.ToString();
+            listItem.Text = item.Category.Title + " > " + item.Title;
+            listItem.Enabled = true;
+
+            ListItems.Items.Add(listItem);
+        }
+    }
 
     #endregion
 }
